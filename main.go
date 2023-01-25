@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"fmt"
 	"go-torrent-client/settings"
 	"go-torrent-client/tracker"
 	"log"
@@ -26,7 +27,7 @@ func init() {
 }
 
 func main() {
-	// fmt.Println("Minimal Go Torrent Client!")
+	fmt.Println("Minimal Go Torrent Client!")
 
 	fileReader, err := os.Open("./debian-mac-11.6.0-amd64-netinst.iso.torrent")
 	if err != nil {
@@ -41,21 +42,10 @@ func main() {
 
 	trackerClient = tracker.NewTrackerClient(&t)
 
-	trackerClient.GetPeersTCP(torrentConfig.PeerId, torrentConfig.Port)
+	peers, err := trackerClient.GetPeersTCP(torrentConfig.PeerId, torrentConfig.Port)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// client := tracker.CreateClient(&t)
-
-	// connectTracker := client.ConnectTracker(torrentConfig)
-
-	// if err = connectTracker.ValidateConnectResponse(torrentConfig); err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// fmt.Println(connectTracker.Action)
-
-	// announceTracker := client.AnnounceTracker(&t, torrentConfig)
-
-	// fmt.Println(announceTracker.Interval)
-	// fmt.Println(announceTracker.Addresses)
-
+	fmt.Println(peers)
 }
