@@ -2,16 +2,15 @@ package main
 
 import (
 	"crypto/sha1"
-	"fmt"
+	"go-torrent-client/settings"
+	"go-torrent-client/tracker"
 	"log"
 	"math/rand"
 	"os"
-	"torrentClient/settings"
-	torrenttracker "torrentClient/torrentTracker"
 )
 
+var trackerClient *tracker.TrackerClient
 var torrentConfig *settings.Settings
-var torrentClient *torrenttracker.Client
 
 func init() {
 	log.SetOutput(os.Stdout)
@@ -27,28 +26,36 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Minimalist Go Torrent Client")
+	// fmt.Println("Minimal Go Torrent Client!")
 
-	torrent, err := torrenttracker.OpenTorrentFile("./sample.torrent")
+	fileReader, err := os.Open("./debian-mac-11.6.0-amd64-netinst.iso.torrent")
+	if err != nil {
+		log.Fatal("failed to open torrent file.")
+	}
+	defer fileReader.Close()
+
+	t, err := tracker.OpenTorrent(fileReader)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	torrentClient = torrenttracker.CreateClient(&torrent)
-	defer torrentClient.Close()
+	trackerClient = tracker.NewTrackerClient(&t)
 
-	connectTracker := torrentClient.ConnectTracker(&torrent, torrentConfig)
+	trackerClient.GetPeersTCP(torrentConfig.PeerId, torrentConfig.Port)
 
-	if err = connectTracker.ValidateConnectResponse(torrentConfig); err != nil {
-		fmt.Println(err)
-	}
+	// client := tracker.CreateClient(&t)
 
-	// announceTracker := torrentClient.AnnounceTracker(&torrent, torrentConfig)
+	// connectTracker := client.ConnectTracker(torrentConfig)
 
-	// if announceTracker.Action == torrenttracker.ErrorID {
-	// 	log.Fatal("Failed to get list of peer from the tracker")
+	// if err = connectTracker.ValidateConnectResponse(torrentConfig); err != nil {
+	// 	fmt.Println(err)
 	// }
 
-	// fmt.Printf("Peers: %s", announceTracker.Addresses)
+	// fmt.Println(connectTracker.Action)
+
+	// announceTracker := client.AnnounceTracker(&t, torrentConfig)
+
+	// fmt.Println(announceTracker.Interval)
+	// fmt.Println(announceTracker.Addresses)
 
 }

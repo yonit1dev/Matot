@@ -5,4 +5,5 @@ type Settings struct {
 	ConnectionId  uint64
 	Port          uint16
 	PeerId        [20]byte
+	InfoHash      [20]byte
 }
