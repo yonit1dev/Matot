@@ -19,17 +19,18 @@ type PeerClient struct {
 }
 
 func NewPeerClient(peer peer.Peer, infoHash, peerId [20]byte) (*PeerClient, error) {
-	fmt.Println(peer.String())
-	conn, err := net.DialTimeout("tcp", peer.String(), 5*time.Second)
+	conn, err := net.DialTimeout("tcp", peer.String(), 10*time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = handshakePeer(conn, infoHash, peerId)
+	h, err := handshakePeer(conn, infoHash, peerId)
 	if err != nil {
 		conn.Close()
 		log.Fatal(err)
 	}
+
+	fmt.Println(h.Protocol)
 
 	pieces, err := ParseBitfieldMsg(conn)
 	if err != nil {

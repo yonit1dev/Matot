@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha1"
 	"fmt"
+	"go-torrent-client/downloader"
 	"go-torrent-client/settings"
 	"go-torrent-client/tracker"
 	"log"
@@ -47,5 +48,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(peers)
+	sentTorrent := downloader.Torrent{
+		Peers:       peers,
+		PeerID:      torrentConfig.PeerId,
+		InfoHash:    t.InfoHash,
+		PieceHashes: t.Pieces,
+		PieceLength: int(t.PieceLength),
+		Length:      int(t.Length),
+		Name:        t.Name,
+	}
+
+	buffer, err := sentTorrent.Download()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	outFile, err := os.Create("./")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outFile.Close()
+	_, err = outFile.Write(buffer)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }

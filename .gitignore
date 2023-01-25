@@ -17,3 +17,7 @@
 # Torrent files
 *.torrent
 *.*.torrent
+
+# Exe
+*.exe
+go-torrent-client
