@@ -3,8 +3,8 @@ package peerconnection
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
+	"log"
 )
 
 const PROTOCOL = "BitTorrent protocol"
@@ -49,12 +49,11 @@ func ParseHandshake(r io.Reader) (*Handshake, error) {
 	}
 	protocolLength := int(handshakeBuffer[0])
 
-	if protocolLength == 0 {
-		err := fmt.Errorf("protocol cannot be 0")
-		return nil, err
+	if protocolLength != int(19) {
+		log.Fatalf("unknown protocol: %d", protocolLength)
 	}
 
-	parsedHandshake := make([]byte, 48+protocolLength)
+	parsedHandshake := make([]byte, 68)
 	_, err = io.ReadFull(r, parsedHandshake)
 	if err != nil {
 		return nil, err

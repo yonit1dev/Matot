@@ -9,11 +9,11 @@ import (
 // 16KB as specified in BEP
 const ReqMsgSize = 16384
 
-// recommended to be 5 in BitTorrent Paper
+// recommended to be 5 in BitTorrent Economics Paper
 const PieceRequestBacklog = 5
 
 // handling the downloading of pieces using go routines
-// after a piece is downloaded we notify other go routines using channel (share memory by communicating)
+// after a piece is downloaded we notify other go routines using results channel
 
 // defining a piece download progress and a go routine work progress
 
@@ -86,10 +86,10 @@ func recievePiece(client *peerconnection.PeerClient, pw *pieceDwWork) ([]byte, e
 		buffer:     make([]byte, pw.length),
 	}
 
-	client.Conn.SetDeadline(time.Now().Add(30 * time.Second))
+	client.Conn.SetDeadline(time.Now().Add(45 * time.Second))
 	defer client.Conn.SetDeadline(time.Time{})
 
-	// the amount we recieved is less than the length of the piece continue
+	// the amount we recieved is less than the length of the piece; continue
 	for state.recieved < pw.length {
 
 		if !state.peerClient.Choked {
@@ -105,6 +105,7 @@ func recievePiece(client *peerconnection.PeerClient, pw *pieceDwWork) ([]byte, e
 				if err != nil {
 					log.Fatal(err)
 				}
+				// add the piece request to the request backlog
 				state.reqBacklog++
 				state.requested += blockSize
 			}

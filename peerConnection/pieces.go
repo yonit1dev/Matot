@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// the piece that a peer has represented as a byte
+// the piece that a peer has represented as a byte(bitfields)
 type PeerPiece []byte
 
 // if a bit is set to 0 in the peer piece byte representation then the peer doesn't have the piece
@@ -34,11 +34,11 @@ func ParseBitfieldMsg(conn net.Conn) (PeerPiece, error) {
 		return nil, err
 	}
 	if msg == nil {
-		err := fmt.Errorf("expected pieces but got %s", msg)
+		err := fmt.Errorf("expected pieces but got nil")
 		return nil, err
 	}
 	if msg.ID != Bitfield {
-		err := fmt.Errorf("expected pieces but got ID %d", msg.ID)
+		err := fmt.Errorf("expected pieces but got msgID %d", msg.ID)
 		return nil, err
 	}
 

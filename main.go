@@ -23,7 +23,7 @@ func init() {
 	torrentConfig = &settings.Settings{
 		TransactionId: rand.Uint32(),
 		PeerId:        sha1.Sum(randomBytes),
-		Port:          uint16(6882),
+		Port:          uint16(6885),
 	}
 }
 

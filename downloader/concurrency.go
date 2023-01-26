@@ -52,7 +52,7 @@ func Download(peers []peer.Peer, peerId [20]byte, infoHash [20]byte, tLength int
 		dwQueue <- &pieceDwWork{index, length, hash}
 	}
 
-	for _, peer := range peers[0:5] {
+	for _, peer := range peers {
 		go initDwThread(peer, peerId, infoHash, dwQueue, dwResults)
 	}
 
