@@ -19,16 +19,6 @@ const PieceRequestBacklog = 5
 
 // defining a piece download progress and a go routine work progress
 
-type Torrent struct {
-	Peers       []peer.Peer
-	PeerID      [20]byte
-	InfoHash    [20]byte
-	PieceHashes [][20]byte
-	PieceLength int
-	Length      int
-	Name        string
-}
-
 // monitors the downloading of a piece by multiple go routines connecting to a peer
 type pieceDwProgress struct {
 	peerClient peerconnection.PeerClient
