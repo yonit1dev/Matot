@@ -2,7 +2,6 @@ package peerconnection
 
 import (
 	"bytes"
-	"fmt"
 	"go-torrent-client/peer"
 	"log"
 	"net"
@@ -19,18 +18,16 @@ type PeerClient struct {
 }
 
 func NewPeerClient(peer peer.Peer, infoHash, peerId [20]byte) (*PeerClient, error) {
-	conn, err := net.DialTimeout("tcp", peer.String(), 10*time.Second)
+	conn, err := net.DialTimeout("tcp", peer.String(), 5*time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	h, err := handshakePeer(conn, infoHash, peerId)
+	_, err = handshakePeer(conn, infoHash, peerId)
 	if err != nil {
 		conn.Close()
 		log.Fatal(err)
 	}
-
-	fmt.Println(h.Protocol)
 
 	pieces, err := ParseBitfieldMsg(conn)
 	if err != nil {
@@ -52,16 +49,16 @@ func handshakePeer(conn net.Conn, infoHash [20]byte, peerId [20]byte) (*Handshak
 
 	_, err := conn.Write(handshakeReq.BufferHandshake())
 	if err != nil {
-		log.Fatalf("Handshaking error. %s", err)
+		log.Fatalf("Handshake buffering error. %s", err)
 	}
 
-	handshakeRespone, err := ParseHandshake(conn)
+	hShakeResponse, err := ParseHandshake(conn)
 
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(handshakeRespone.InfoHash[:], infoHash[:]) {
-		log.Fatalf("Expected infohash %x but got %x", handshakeRespone.InfoHash, infoHash)
+	if !bytes.Equal(hShakeResponse.InfoHash[:], infoHash[:]) {
+		log.Fatalf("Expected infohash %x but got %x", infoHash, hShakeResponse.InfoHash)
 	}
-	return handshakeRespone, nil
+	return hShakeResponse, nil
 }

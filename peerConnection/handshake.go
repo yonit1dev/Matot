@@ -55,7 +55,7 @@ func ParseHandshake(r io.Reader) (*Handshake, error) {
 	}
 
 	parsedHandshake := make([]byte, 48+protocolLength)
-	_, err = io.ReadFull(r, handshakeBuffer)
+	_, err = io.ReadFull(r, parsedHandshake)
 	if err != nil {
 		return nil, err
 	}

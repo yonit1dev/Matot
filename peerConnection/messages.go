@@ -33,7 +33,7 @@ func (msg *Message) BufferMessage() []byte {
 		return make([]byte, 4)
 	}
 
-	msgLength := uint32(len(msg.Payload)) + 1
+	msgLength := uint32(len(msg.Payload) + 1)
 	msgBuffer := make([]byte, 4+msgLength)
 
 	binary.BigEndian.PutUint32(msgBuffer[0:4], msgLength)

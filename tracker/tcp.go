@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"go-torrent-client/peer"
+	"go-torrent-client/settings"
 	"log"
 	"net/http"
 	"net/url"
@@ -24,7 +25,7 @@ type TrackerResponse struct {
 	Peers    string
 }
 
-func (tc *TrackerClient) prepareTrackerReq(peerId [20]byte, port uint16) (string, error) {
+func (tc *TrackerClient) prepareTrackerReq(sets *settings.Settings) (string, error) {
 	baseUrl, err := url.Parse(tc.torrent.Announce)
 	if err != nil {
 		log.Fatalf("failed to parse tracker url. Error: %s", err)
@@ -32,8 +33,8 @@ func (tc *TrackerClient) prepareTrackerReq(peerId [20]byte, port uint16) (string
 
 	params := url.Values{
 		"info_hash":  []string{string(tc.torrent.InfoHash[:])},
-		"peer_id":    []string{string(peerId[:])},
-		"port":       []string{strconv.Itoa(int(port))},
+		"peer_id":    []string{string(sets.PeerId[:])},
+		"port":       []string{strconv.Itoa(int(sets.Port))},
 		"uploaded":   []string{"0"},
 		"downloaded": []string{"0"},
 		"compact":    []string{"1"},
@@ -43,20 +44,24 @@ func (tc *TrackerClient) prepareTrackerReq(peerId [20]byte, port uint16) (string
 	baseUrl.RawQuery = params.Encode()
 	return baseUrl.String(), nil
 }
-func (tc *TrackerClient) GetPeersTCP(peerId [20]byte, port uint16) ([]peer.Peer, error) {
+func (tc *TrackerClient) GetPeersTCP(sets *settings.Settings) ([]peer.Peer, error) {
 
-	url, err := tc.prepareTrackerReq(peerId, port)
+	url, err := tc.prepareTrackerReq(sets)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	c := &http.Client{Timeout: time.Second * 30}
+	c := &http.Client{Timeout: time.Second * 60}
 
 	response, err := c.Get(url)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		log.Fatal("Response from tracker not ok!")
+	}
 
 	trackerResponse := TrackerResponse{}
 	err = bencode.Unmarshal(response.Body, &trackerResponse)

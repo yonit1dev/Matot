@@ -43,32 +43,18 @@ func main() {
 
 	trackerClient = tracker.NewTrackerClient(&t)
 
-	peers, err := trackerClient.GetPeersTCP(torrentConfig.PeerId, torrentConfig.Port)
+	peers, err := trackerClient.GetPeersTCP(torrentConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sentTorrent := downloader.Torrent{
-		Peers:       peers,
-		PeerID:      torrentConfig.PeerId,
-		InfoHash:    t.InfoHash,
-		PieceHashes: t.Pieces,
-		PieceLength: int(t.PieceLength),
-		Length:      int(t.Length),
-		Name:        t.Name,
-	}
-
-	buffer, err := sentTorrent.Download()
+	piecesBuffer, err := downloader.Download(peers, torrentConfig.PeerId, t.InfoHash, int(t.Length), int(t.PieceLength), t.Pieces)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	outFile, err := os.Create("./")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer outFile.Close()
-	_, err = outFile.Write(buffer)
+	err = tracker.SaveTorrent("./downloadedTorrent/", piecesBuffer)
+
 	if err != nil {
 		log.Fatal(err)
 	}

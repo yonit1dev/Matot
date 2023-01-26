@@ -29,28 +29,31 @@ type Torrent struct {
 	Name        string
 }
 
+// monitors the downloading of a piece by multiple go routines connecting to a peer
 type pieceDwProgress struct {
 	peerClient peerconnection.PeerClient
 	buffer     []byte
 	index      int
-	downloaded int
+	recieved   int
 	requested  int
 	reqBacklog int
 }
 
+// holds the actions for downloading a pice
 type pieceDwWork struct {
 	index     int
 	length    int
 	pieceHash [20]byte
 }
 
+// holds the result of downloading a piece
 type pieceDwResult struct {
 	index  int
 	buffer []byte
 }
 
 func (state *pieceDwProgress) readPeerConnectionMsg() error {
-	msg, err := peerconnection.ParseMsg(state.peerClient.Conn) // this call blocks
+	msg, err := peerconnection.ParseMsg(state.peerClient.Conn)
 	if err != nil {
 		return err
 	}
@@ -61,45 +64,51 @@ func (state *pieceDwProgress) readPeerConnectionMsg() error {
 	}
 
 	switch msg.ID {
+	// recieve an unchoke message
 	case peerconnection.UnChoke:
 		state.peerClient.Choked = false
+	// recieve a choke message
 	case peerconnection.Choke:
 		state.peerClient.Choked = true
+	// recieve a have message
 	case peerconnection.Have:
+		// check for index of piece
 		index, err := peerconnection.ParseHaveMsg(msg)
 		if err != nil {
 			return err
 		}
+		// recognize the bit for the piece
 		state.peerClient.Pieces.SetBitPiece(index)
+	// recieve a bitfield message
 	case peerconnection.Bitfield:
 		n, err := peerconnection.ParsePieceMsg(msg, state.index, state.buffer)
 		if err != nil {
 			return err
 		}
-		state.downloaded += n
+		state.recieved += n
 		state.reqBacklog--
 	}
 	return nil
 }
 
-func attemptDownloadPiece(client *peerconnection.PeerClient, pw *pieceDwWork) ([]byte, error) {
+func recievePiece(client *peerconnection.PeerClient, pw *pieceDwWork) ([]byte, error) {
 	state := pieceDwProgress{
 		index:      pw.index,
 		peerClient: *client,
 		buffer:     make([]byte, pw.length),
 	}
 
-	// Setting a deadline helps get unresponsive peers unstuck.
-	// 30 seconds is more than enough time to download a 262 KB piece
 	client.Conn.SetDeadline(time.Now().Add(30 * time.Second))
-	defer client.Conn.SetDeadline(time.Time{}) // Disable the deadline
+	defer client.Conn.SetDeadline(time.Time{})
 
-	for state.downloaded < pw.length {
-		// If unchoked, send requests until we have enough unfulfilled requests
+	// the amount we recieved is less than the length of the piece continue
+	for state.recieved < pw.length {
+
 		if !state.peerClient.Choked {
 			for state.reqBacklog < PieceRequestBacklog && state.requested < pw.length {
+				// pieces are split into blocks to request at once
 				blockSize := ReqMsgSize
-				// Last block might be shorter than the typical block
+
 				if pw.length-state.requested < blockSize {
 					blockSize = pw.length - state.requested
 				}
@@ -122,36 +131,35 @@ func attemptDownloadPiece(client *peerconnection.PeerClient, pw *pieceDwWork) ([
 	return state.buffer, nil
 }
 
-func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan *pieceDwWork, results chan *pieceDwResult) {
-	c, err := peerconnection.NewPeerClient(peer, t.PeerID, t.InfoHash)
+func initDwThread(peer peer.Peer, peerId [20]byte, infoHash [20]byte, workQueue chan *pieceDwWork, results chan *pieceDwResult) {
+	c, err := peerconnection.NewPeerClient(peer, peerId, infoHash)
 	if err != nil {
-		log.Printf("Could not handshake with %s. Disconnecting\n", peer.IP)
-		return
+		log.Fatalf("Handshake failed with peer: %s", peer.IP)
 	}
+
 	defer c.Conn.Close()
 	log.Printf("Completed handshake with %s\n", peer.IP)
 
 	c.SendUnchokeMsg()
-	c.SendNotInteresetedMsg()
+	c.SendInteresetedMsg()
 
 	for pw := range workQueue {
 		if !c.Pieces.CheckPiece(pw.index) {
-			workQueue <- pw // Put piece back on the queue
+			workQueue <- pw
 			continue
 		}
 
-		// Download the piece
-		buf, err := attemptDownloadPiece(c, pw)
+		buf, err := recievePiece(c, pw)
 		if err != nil {
-			log.Println("Exiting", err)
-			workQueue <- pw // Put piece back on the queue
+			log.Println("Couldn't recieve piece. Done!", err)
+			workQueue <- pw
 			return
 		}
 
 		err = CheckPiece(buf, pw.pieceHash)
 		if err != nil {
-			log.Printf("Piece #%d failed integrity check\n", pw.index)
-			workQueue <- pw // Put piece back on the queue
+			log.Printf("Malformed piece: %d", pw.index)
+			workQueue <- pw
 			continue
 		}
 
@@ -160,35 +168,31 @@ func (t *Torrent) startDownloadWorker(peer peer.Peer, workQueue chan *pieceDwWor
 	}
 }
 
-func (t *Torrent) Download() ([]byte, error) {
-	log.Println("Starting download for", t.Name)
-	// Init queues for workers to retrieve work and send results
-	workQueue := make(chan *pieceDwWork, len(t.PieceHashes))
-	results := make(chan *pieceDwResult)
-	for index, hash := range t.PieceHashes {
-		length := CalcPieceSize(t.Length, t.PieceLength, index)
-		workQueue <- &pieceDwWork{index, length, hash}
+func Download(peers []peer.Peer, peerId [20]byte, infoHash [20]byte, tLength int, pieceLength int, pieceHashes [][20]byte) ([]byte, error) {
+	dwQueue := make(chan *pieceDwWork, len(pieceHashes))
+	dwResults := make(chan *pieceDwResult)
+	for index, hash := range pieceHashes {
+		length := CalcPieceSize(tLength, pieceLength, index)
+		dwQueue <- &pieceDwWork{index, length, hash}
 	}
 
-	// Start workers
-	for _, peer := range t.Peers {
-		go t.startDownloadWorker(peer, workQueue, results)
+	for _, peer := range peers[0:5] {
+		go initDwThread(peer, peerId, infoHash, dwQueue, dwResults)
 	}
 
-	// Collect results into a buffer until full
-	buf := make([]byte, t.Length)
+	buf := make([]byte, tLength)
 	donePieces := 0
-	for donePieces < len(t.PieceHashes) {
-		res := <-results
-		begin, end := CalcPieceBounds(t.Length, t.PieceLength, res.index)
+	for donePieces < len(pieceHashes) {
+		res := <-dwResults
+		begin, end := CalcPieceBounds(tLength, pieceLength, res.index)
 		copy(buf[begin:end], res.buffer)
-		donePieces++
+		donePieces += 1
 
-		percent := float64(donePieces) / float64(len(t.PieceHashes)) * 100
-		numWorkers := runtime.NumGoroutine() - 1 // subtract 1 for main thread
+		percent := float64(donePieces) / float64(len(pieceHashes)) * 100
+		numWorkers := runtime.NumGoroutine() - 1
 		log.Printf("(%0.2f%%) Downloaded piece #%d from %d peers\n", percent, res.index, numWorkers)
 	}
-	close(workQueue)
+	close(dwQueue)
 
 	return buf, nil
 }

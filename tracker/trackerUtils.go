@@ -4,6 +4,7 @@ import (
 	"go-torrent-client/torrent"
 	"io"
 	"log"
+	"os"
 
 	"github.com/jackpal/bencode-go"
 )
@@ -50,4 +51,19 @@ func toTrackerTFile(t *torrent.Torrent) (TorrentFile, error) {
 
 	return tFile, nil
 
+}
+
+func SaveTorrent(path string, buffer []byte) error {
+	saved, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer saved.Close()
+
+	_, err = saved.Write(buffer)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
