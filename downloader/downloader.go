@@ -170,19 +170,22 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 		go HandleConnection(peer, infoHash, peerID, dwQueue, dwResults)
 	}
 
-	buf := make([]byte, length)
-	donePieces := 0
-	for donePieces < len(pieceHashes) {
-		res := <-dwResults
-		begin, end := calcPieceBounds(int(length), pieceLength, res.index)
-		copy(buf[begin:end], res.result)
-		donePieces += 1
+	resultBuffer := make([]byte, length)
+	downloadedPieces := 0
 
-		percent := float64(donePieces) / float64(len(pieceHashes)) * 100
-		numWorkers := runtime.NumGoroutine() - 1
-		log.Printf("(%0.2f%%) Downloaded piece #%d from %d peers\n", percent, res.index, numWorkers)
+	for downloadedPieces < len(pieceHashes) {
+		result := <-dwResults
+		begin, end := calcPieceBounds(int(length), pieceLength, result.index)
+		copy(resultBuffer[begin:end], result.result)
+		downloadedPieces += 1
+
+		completed := float32(downloadedPieces) / float32(len(pieceHashes)) * 100
+
+		numConnPeers := runtime.NumGoroutine() - 1
+
+		fmt.Printf("(%0.2f%%) Finished piece %d from %d active peers\n", completed, result.index, numConnPeers)
 	}
 	close(dwQueue)
 
-	return buf, nil
+	return resultBuffer, nil
 }
