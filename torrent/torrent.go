@@ -1,51 +1,84 @@
 package torrent
 
 import (
-	"bytes"
 	"crypto/sha1"
-	"fmt"
-	"log"
+	"io"
+	"os"
 
-	"github.com/jackpal/bencode-go"
+	bencode1 "github.com/zeebo/bencode"
 )
 
-type TorrentInfo struct {
+type InfoExtractor struct {
+	RawInfo bencode1.RawMessage `bencode:"info"`
+}
+
+type File struct {
+	Length uint64 `bencode:"length"`
+	Path   string `bencode:"path"`
+}
+
+// meta file info key
+type MetaInfo struct {
+	Files       []File `bencode:"files"`
 	Name        string `bencode:"name"`
 	Length      uint64 `bencode:"length"`
 	Pieces      string `bencode:"pieces"`
 	PieceLength uint64 `bencode:"piece length"`
 }
-type Torrent struct {
-	Announce string      `bencode:"announce"`
-	Info     TorrentInfo `bencode:"info"`
+
+// meta file
+type Meta struct {
+	Announce string   `bencode:"announce"`
+	Info     MetaInfo `bencode:"info"`
 }
 
-func (tInfo *TorrentInfo) CalcInfoHash() ([20]byte, error) {
-	var infoHashBuf bytes.Buffer
-
-	err := bencode.Marshal(&infoHashBuf, *tInfo)
-	if err != nil {
-		log.Fatalf("unable to calculate infohash. Error: %s", err)
-	}
-
-	infoHash := sha1.Sum(infoHashBuf.Bytes())
-
-	return infoHash, nil
-
+// torrent file to send tracker
+type TorrentFile struct {
+	Announce    string
+	InfoHash    [20]byte
+	Name        string
+	Length      uint64
+	Pieces      [][20]byte
+	PieceLength uint64
 }
 
-func (tInfo *TorrentInfo) SplitPieces() ([][20]byte, error) {
-	pieceHashLength := 20 // Length of SHA-1 hash
-	pieceBuffer := []byte(tInfo.Pieces)
-	if len(pieceBuffer)%pieceHashLength != 0 {
-		err := fmt.Errorf("received malformed pieces of length %d", len(pieceBuffer))
-		return nil, err
-	}
-	numHashes := len(pieceBuffer) / pieceHashLength
-	hashes := make([][20]byte, numHashes)
+func (metaInfo *MetaInfo) Size() (uint64, error) {
+	var length uint64
 
-	for i := 0; i < numHashes; i++ {
-		copy(hashes[i][:], pieceBuffer[i*pieceHashLength:(i+1)*pieceHashLength])
+	if len(metaInfo.Files) == 0 {
+		length = metaInfo.Length
+	} else {
+		for _, item := range metaInfo.Files {
+			length += item.Length
+		}
 	}
-	return hashes, nil
+
+	return length, nil
+}
+
+func (meta *Meta) HashedInfo(src *os.File) (hashed [20]byte) {
+	var rawInfo InfoExtractor
+	// go back to the begining of the file
+	src.Seek(0, 0)
+	content, _ := io.ReadAll(src)
+
+	bencode1.DecodeBytes(content, &rawInfo)
+
+	hasher := sha1.New()
+	hasher.Write(rawInfo.RawInfo)
+	copy(hashed[:], hasher.Sum(nil))
+	return
+}
+
+func (metaInfo *MetaInfo) splitPieces() ([][20]byte, error) {
+	pieceLength := 20 // 20 bytes size of one piece hash
+	pieceBuffer := []byte(metaInfo.Pieces)
+
+	hashNum := len(pieceBuffer) / pieceLength
+	pieceHashes := make([][20]byte, hashNum) // array containing the piece hashes of size 20 byte
+
+	for i := 0; i < hashNum; i++ {
+		copy(pieceHashes[i][:], pieceBuffer[i*pieceLength:(i+1)*pieceLength])
+	}
+	return pieceHashes, nil
 }

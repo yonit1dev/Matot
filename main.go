@@ -3,16 +3,18 @@ package main
 import (
 	"crypto/sha1"
 	"fmt"
-	"go-torrent-client/downloader"
-	"go-torrent-client/settings"
-	"go-torrent-client/tracker"
+	"goAssignment/config"
+	"goAssignment/downloader"
+	"goAssignment/torrent"
+	"goAssignment/tracker.go"
 	"log"
 	"math/rand"
 	"os"
+
+	"github.com/jackpal/bencode-go"
 )
 
-var trackerClient *tracker.TrackerClient
-var torrentConfig *settings.Settings
+var torrentConfig *config.Config
 
 func init() {
 	log.SetOutput(os.Stdout)
@@ -20,43 +22,57 @@ func init() {
 	randomBytes := make([]byte, 20)
 	rand.Read(randomBytes)
 
-	torrentConfig = &settings.Settings{
-		TransactionId: rand.Uint32(),
-		PeerId:        sha1.Sum(randomBytes),
-		Port:          uint16(6885),
+	torrentConfig = &config.Config{
+		TransactionID: rand.Uint32(),
+		PeerID:        sha1.Sum(randomBytes),
+		Port:          uint16(6882),
 	}
 }
 
 func main() {
-	fmt.Println("Minimal Go Torrent Client!")
+	fmt.Println("GoTorrent Client")
 
-	fileReader, err := os.Open("./debian-mac-11.6.0-amd64-netinst.iso.torrent")
+	fileReader, err := os.Open("./samples/sample.torrent")
 	if err != nil {
-		log.Fatal("failed to open torrent file.")
+		log.Fatalf("Couldn't open meta-file")
+		return
 	}
 	defer fileReader.Close()
 
-	t, err := tracker.OpenTorrent(fileReader)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	trackerClient = tracker.NewTrackerClient(&t)
-
-	peers, err := trackerClient.GetPeersTCP(torrentConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	piecesBuffer, err := downloader.Download(peers, torrentConfig.PeerId, t.InfoHash, int(t.Length), int(t.PieceLength), t.Pieces)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = tracker.SaveTorrent("./downloadedTorrent/", piecesBuffer)
+	meta := torrent.Meta{}
+	err = bencode.Unmarshal(fileReader, &meta)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Couldn't unmarshal meta-file")
+		return
 	}
+
+	tf, err := torrent.ToTrackerFile(&meta, fileReader)
+	if err != nil {
+		log.Fatalf(err.Error())
+		return
+	}
+
+	// Parsed successfuly
+	// fmt.Println(tf.Announce)
+	// fmt.Println(tf.InfoHash)
+	// fmt.Println(torrentConfig.PeerID)
+
+	//client
+	client := tracker.NewTrackerClient(tf)
+
+	peerAdd, err := client.GetPeersTCP(torrentConfig)
+	if err != nil {
+		log.Print(err.Error())
+		return
+	}
+
+	results, err := downloader.DownloadT(tf.Pieces, int(tf.PieceLength), tf.Length, peerAdd, tf.InfoHash, torrentConfig.PeerID)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	fmt.Println(results)
 
 }

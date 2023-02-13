@@ -3,19 +3,19 @@ package downloader
 import (
 	"bytes"
 	"crypto/sha1"
-	"log"
+	"errors"
 )
 
-func CheckPiece(buffer []byte, pieceHash [20]byte) error {
+func checkPiece(buffer []byte, pieceHash [20]byte) error {
 	hash := sha1.Sum(buffer)
 	if !bytes.Equal(hash[:], pieceHash[:]) {
-		log.Fatal("Downloaded piece is corrupt")
+		return errors.New("downloaded piece is corrupt")
 	}
 
 	return nil
 }
 
-func CalcPieceBounds(tLength, pieceLength, index int) (begin, end int) {
+func calcPieceBounds(tLength, pieceLength, index int) (begin, end int) {
 	begin = index * pieceLength
 	end = begin + pieceLength
 	if end > tLength {
@@ -24,7 +24,7 @@ func CalcPieceBounds(tLength, pieceLength, index int) (begin, end int) {
 	return begin, end
 }
 
-func CalcPieceSize(tLength, pieceLength, index int) int {
-	begin, end := CalcPieceBounds(tLength, pieceLength, index)
+func calcPieceSize(tLength, pieceLength, index int) int {
+	begin, end := calcPieceBounds(tLength, pieceLength, index)
 	return end - begin
 }

@@ -1,5 +1,8 @@
-module go-torrent-client
+module goAssignment
 
 go 1.19
 
-require github.com/jackpal/bencode-go v1.0.0
+require (
+	github.com/jackpal/bencode-go v1.0.0
+	github.com/zeebo/bencode v1.0.0
+)
