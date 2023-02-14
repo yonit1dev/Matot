@@ -61,11 +61,13 @@ func main() {
 	//client
 	client := tracker.NewTrackerClient(tf)
 
-	peerAdd, err := client.GetPeersTCP(torrentConfig)
+	interval, peerAdd := client.GetPeersTCP(torrentConfig)
 	if err != nil {
 		log.Print(err.Error())
 		return
 	}
+
+	fmt.Println(interval)
 
 	results, err := downloader.DownloadT(tf.Pieces, int(tf.PieceLength), tf.Length, peerAdd, tf.InfoHash, torrentConfig.PeerID)
 	if err != nil {

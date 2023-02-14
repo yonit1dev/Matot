@@ -43,7 +43,7 @@ func ReadMsg(r io.Reader) (*Message, error) {
 
 	msgLength := binary.BigEndian.Uint32(lengthPrefix)
 
-	// Wait for connectiion
+	// Wait for connection - keep alive
 	if msgLength == 0 {
 		return nil, nil
 	}
@@ -55,12 +55,23 @@ func ReadMsg(r io.Reader) (*Message, error) {
 		return nil, err
 	}
 
-	msg := Message{
-		ID:      uint8(buffer[0]),
-		Payload: buffer[1:],
+	if msgLength == 1 {
+		msg := Message{
+			ID: uint8(buffer[0]),
+		}
+
+		return &msg, nil
+	} else if msgLength > 1 {
+		msg := Message{
+			ID:      uint8(buffer[0]),
+			Payload: buffer[1:],
+		}
+
+		return &msg, nil
+	} else {
+		return nil, errors.New("no message recieved")
 	}
 
-	return &msg, nil
 }
 
 func RequestMsgPayload(sp *SpecialMsg) *Message {
@@ -74,7 +85,7 @@ func RequestMsgPayload(sp *SpecialMsg) *Message {
 
 func HaveMsgPayload(index uint32) *Message {
 	havePayload := make([]byte, 4) // index of piece
-	binary.BigEndian.PutUint32(havePayload, uint32(index))
+	binary.BigEndian.PutUint32(havePayload, index)
 
 	return &Message{ID: Have, Payload: havePayload}
 }
@@ -100,12 +111,6 @@ func RecievePieceMsg(reqIndex int, pieceBuf []byte, m *Message) (int, error) {
 		log.Printf("Wrong message ID. Expected: %d, got: %d", Piece, m.ID)
 		return 0, errors.New("wrong msg")
 	}
-
-	// if len(m.Payload) != 4 {
-	// 	log.Printf("Wrong payload length: %d", len(m.Payload))
-	// 	return 0, errors.New("wrong msg")
-
-	// }
 
 	pieceIndex := int(binary.BigEndian.Uint32(m.Payload))
 

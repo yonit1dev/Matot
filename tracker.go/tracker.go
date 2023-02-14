@@ -54,7 +54,7 @@ func (tc *TrackerClient) prepareTrackerReq(config *config.Config) (string, error
 	return baseUrl.String(), nil
 }
 
-func (tc *TrackerClient) GetPeersTCP(config *config.Config) ([]Peer, error) {
+func (tc *TrackerClient) GetPeersTCP(config *config.Config) (int64, []Peer) {
 
 	url, err := tc.prepareTrackerReq(config)
 	if err != nil {
@@ -83,7 +83,12 @@ func (tc *TrackerClient) GetPeersTCP(config *config.Config) ([]Peer, error) {
 		log.Fatalf(trackerResponse.FailureReason)
 	}
 
-	return ParsePeerAddress([]byte(trackerResponse.Peers))
+	peers, err := ParsePeerAddress([]byte(trackerResponse.Peers))
+	if err != nil {
+		return 0, nil
+	}
+
+	return trackerResponse.Interval, peers
 }
 
 // ParsePeerAddress parses peer IP addresses and ports from a buffer

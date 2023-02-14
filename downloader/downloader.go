@@ -9,27 +9,28 @@ import (
 	"time"
 )
 
-const ReqBacklog = 10
+const ReqBacklog = 10   // 10 requests pending
 const BlockSize = 16384 // 16KB
 
 type pieceDw struct {
-	pieceHash [20]byte
-	index     int
-	length    int
+	pieceHash [20]byte // piecehash of each piece
+	index     int      // position of each piece in the pieces array
+	length    int      // length of the piece
 }
 
 type pieceDwResult struct {
-	index  int
-	result []byte
+	index  int    // downloaded piece index
+	result []byte // downloaded bytes
 }
 
+// keeps track of a go routine download progress
 type workerProg struct {
-	index      int
-	peerClient *peerconnect.PeerConnection
-	downloaded int
-	requested  int
-	buffer     []byte
-	backlog    int
+	index      int                         // index of piece
+	peerClient *peerconnect.PeerConnection // connection with peer
+	downloaded int                         // downloaded bytes length
+	requested  int                         // requested bytes length
+	buffer     []byte                      // result buffer to keep track of downloaded bytes
+	backlog    int                         // requests pending
 }
 
 func (progress *workerProg) readMsg() error {
@@ -51,12 +52,14 @@ func (progress *workerProg) readMsg() error {
 	case peerconnect.Have:
 		index, err := peerconnect.RecieveHaveMsg(m)
 		if err != nil {
+			log.Print(err)
 			return err
 		}
 		progress.peerClient.Bitfield.ChangeBit(index)
 	case peerconnect.Piece:
 		recieved, err := peerconnect.RecievePieceMsg(progress.index, progress.buffer, m)
 		if err != nil {
+			log.Print(err)
 			return err
 		}
 		progress.downloaded += recieved
@@ -73,11 +76,15 @@ func HandleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan
 		return
 	}
 
-	defer c.Conn.Close()
+	// defer c.Conn.Close()
 
-	log.Printf("Completed Handshake with: %s", peer.String())
+	// sending intereseted message after verifying handshake
+	err = c.SendInteresetedMsg()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 
-	c.SendInteresetedMsg()
 	_, err = peerconnect.ReadMsg(c.Conn)
 	if err != nil {
 		log.Print(err)
@@ -158,9 +165,13 @@ func downloadPiece(c *peerconnect.PeerConnection, pdw *pieceDw) ([]byte, error) 
 func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd []tracker.Peer, infoHash, peerID [20]byte) ([]byte, error) {
 	fmt.Println("Starting torrent download")
 
+	// channel that keeps track of pieces to download
 	dwQueue := make(chan *pieceDw, len(pieceHashes))
+
+	// channel that keeps track of already downloaded pieces and their result
 	dwResults := make(chan *pieceDwResult)
 
+	// index is the position of the hash in the pieceHash array
 	for index, hash := range pieceHashes {
 		length := calcPieceSize(int(length), pieceLength, index)
 		dwQueue <- &pieceDw{hash, index, length}

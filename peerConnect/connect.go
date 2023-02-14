@@ -40,9 +40,11 @@ func performHandshake(conn net.Conn, infohash, peerID [20]byte) error {
 
 	if !bytes.Equal(h.InfoHash[:], infohash[:]) {
 		return errors.New("wrong info hash from peer")
-	} else {
-		fmt.Println("Correct info hash from peer")
 	}
+
+	// else {
+	// 	// fmt.Println("Correct info hash from peer")
+	// }
 
 	return nil
 }
@@ -53,15 +55,12 @@ func NewPeerConnection(peer tracker.Peer, infoHash, peerID [20]byte) (*PeerConne
 		return nil, err
 	}
 
-	// defer func() {
-	// 	log.Printf("Closing connection with: %s", peer.String())
-	// 	conn.Close()
-	// }()
+	// defer conn.Close()
 
 	err = performHandshake(conn, infoHash, peerID)
 	if err != nil {
 		log.Printf("handshaking failed with peer: %s", peer.String())
-		conn.Close()
+		// conn.Close()
 		return nil, err
 	}
 
