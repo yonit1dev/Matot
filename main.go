@@ -53,11 +53,6 @@ func main() {
 		return
 	}
 
-	// Parsed successfuly
-	// fmt.Println(tf.Announce)
-	// fmt.Println(tf.InfoHash)
-	// fmt.Println(torrentConfig.PeerID)
-
 	//client
 	client := tracker.NewTrackerClient(tf)
 

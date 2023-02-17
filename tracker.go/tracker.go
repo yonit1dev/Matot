@@ -1,7 +1,7 @@
 package tracker
 
 import (
-	"encoding/binary"
+	"fmt"
 	"goAssignment/config"
 	"goAssignment/torrent"
 	"log"
@@ -55,7 +55,6 @@ func (tc *TrackerClient) prepareTrackerReq(config *config.Config) (string, error
 }
 
 func (tc *TrackerClient) GetPeersTCP(config *config.Config) (int64, []Peer) {
-
 	url, err := tc.prepareTrackerReq(config)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -70,7 +69,7 @@ func (tc *TrackerClient) GetPeersTCP(config *config.Config) (int64, []Peer) {
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		log.Fatal("Response from tracker not ok!")
+		log.Fatalf("Response status code error! Expected: %d, Got: %d", 200, response.StatusCode)
 	}
 
 	trackerResponse := TrackerResponse{}
@@ -83,33 +82,15 @@ func (tc *TrackerClient) GetPeersTCP(config *config.Config) (int64, []Peer) {
 		log.Fatalf(trackerResponse.FailureReason)
 	}
 
+	// Display warning message
+	if trackerResponse.WarningMessage != "" {
+		fmt.Println(trackerResponse.WarningMessage)
+	}
+
 	peers, err := ParsePeerAddress([]byte(trackerResponse.Peers))
 	if err != nil {
 		return 0, nil
 	}
 
 	return trackerResponse.Interval, peers
-}
-
-// ParsePeerAddress parses peer IP addresses and ports from a buffer
-func ParsePeerAddress(peers []byte) ([]Peer, error) {
-	const peerAddressSize = 6 // 4 for IP, 2 for port
-	totalPeers := len(peers) / peerAddressSize
-
-	if len(peers)%peerAddressSize != 0 {
-		log.Fatal("peer addresses corrupt")
-	}
-
-	peerAdd := make([]Peer, totalPeers)
-	for i := 0; i < totalPeers; i++ {
-		slice := i * peerAddressSize
-		peerAdd[i].IP = net.IP(peers[slice : slice+4])
-		peerAdd[i].Port = binary.BigEndian.Uint16([]byte(peers[slice+4 : slice+6]))
-	}
-	return peerAdd, nil
-}
-
-// function that joins parsed peer ip addresses and ports
-func (peer Peer) String() string {
-	return net.JoinHostPort(peer.IP.String(), strconv.Itoa(int(peer.Port)))
 }

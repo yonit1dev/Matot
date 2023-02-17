@@ -3,6 +3,7 @@ package torrent
 import (
 	"crypto/sha1"
 	"io"
+	"log"
 	"os"
 
 	bencode1 "github.com/zeebo/bencode"
@@ -62,7 +63,10 @@ func (meta *Meta) HashedInfo(src *os.File) (hashed [20]byte) {
 	src.Seek(0, 0)
 	content, _ := io.ReadAll(src)
 
-	bencode1.DecodeBytes(content, &rawInfo)
+	err := bencode1.DecodeBytes(content, &rawInfo)
+	if err != nil {
+		log.Fatalf("Couldn't decode infohash bytes: %s", err)
+	}
 
 	hasher := sha1.New()
 	hasher.Write(rawInfo.RawInfo)
