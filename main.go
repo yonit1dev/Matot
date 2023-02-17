@@ -30,9 +30,9 @@ func init() {
 }
 
 func main() {
-	fmt.Println("GoTorrent Client")
+	fmt.Println("Matot - BitTorrent Client")
 
-	fileReader, err := os.Open("./samples/debian.iso.torrent")
+	fileReader, err := os.Open("./samples/kali.iso.torrent")
 	if err != nil {
 		log.Fatalf("Couldn't open meta-file")
 		return
@@ -53,9 +53,21 @@ func main() {
 		return
 	}
 
-	fmt.Println(tf.InfoHash)
+	// udp tracker
+	// udpClient := tracker.CreateClient(tf)
+	// defer udpClient.Close()
 
-	//client
+	// connect := udpClient.ConnectTracker(torrentConfig)
+	// if err = connect.ValidateConnectResponse(torrentConfig); err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// announceTracker := udpClient.AnnounceTracker(tf, torrentConfig)
+	// if announceTracker.Action == tracker.ErrorID {
+	// 	log.Fatal("Failed to get list of peer from the tracker")
+	// }
+
+	// tcp tracker
 	client := tracker.NewTrackerClient(tf)
 
 	interval, peerAdd := client.GetPeersTCP(torrentConfig)
