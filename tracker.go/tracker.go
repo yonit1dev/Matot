@@ -2,9 +2,9 @@ package tracker
 
 import (
 	"fmt"
-	"goAssignment/config"
-	"goAssignment/torrent"
 	"log"
+	"matot/config"
+	"matot/torrent"
 	"net"
 	"net/http"
 	"net/url"

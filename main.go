@@ -3,12 +3,12 @@ package main
 import (
 	"crypto/sha1"
 	"fmt"
-	"goAssignment/config"
-	"goAssignment/downloader"
-	"goAssignment/torrent"
-	"goAssignment/tracker.go"
 	"log"
 	"math/rand"
+	"matot/config"
+	"matot/downloader"
+	"matot/torrent"
+	"matot/tracker.go"
 	"os"
 
 	"github.com/jackpal/bencode-go"

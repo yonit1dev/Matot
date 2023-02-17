@@ -2,9 +2,9 @@ package downloader
 
 import (
 	"fmt"
-	peerconnect "goAssignment/peerConnect"
-	"goAssignment/tracker.go"
 	"log"
+	peerconnect "matot/peerConnect"
+	"matot/tracker.go"
 	"runtime"
 	"time"
 )

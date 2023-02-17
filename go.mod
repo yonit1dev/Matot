@@ -1,4 +1,4 @@
-module goAssignment
+module matot
 
 go 1.19
 
