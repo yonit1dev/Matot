@@ -32,7 +32,7 @@ func init() {
 func main() {
 	fmt.Println("GoTorrent Client")
 
-	fileReader, err := os.Open("./samples/kali.iso.torrent")
+	fileReader, err := os.Open("./samples/debian.iso.torrent")
 	if err != nil {
 		log.Fatalf("Couldn't open meta-file")
 		return
@@ -72,6 +72,6 @@ func main() {
 		return
 	}
 
-	fmt.Println(results)
+	torrent.SaveTorrent("./output", results)
 
 }

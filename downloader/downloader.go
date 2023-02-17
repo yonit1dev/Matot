@@ -199,7 +199,7 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 
 		numConnPeers := runtime.NumGoroutine() - 1
 
-		fmt.Printf("(%0.2f%%) Finished piece %d from %d active peers\n", completed, result.index, numConnPeers)
+		fmt.Printf("Progress: (%0.2f%%). Downloading from %d active peers\n", completed, numConnPeers)
 	}
 	close(dwQueue)
 
