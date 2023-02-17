@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const ReqBacklog = 10   // 10 requests pending
+const ReqBacklog = 5    // 5 requests pending
 const BlockSize = 16384 // 16KB
 
 type pieceDw struct {
@@ -69,7 +69,7 @@ func (progress *workerProg) readMsg() error {
 	return nil
 }
 
-func HandleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan *pieceDw, dwResult chan *pieceDwResult) {
+func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan *pieceDw, dwResult chan *pieceDwResult) {
 	c, err := peerconnect.NewPeerConnection(peer, infoHash, peerID)
 	if err != nil {
 		log.Print(err)
@@ -79,17 +79,22 @@ func HandleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan
 	// defer c.Conn.Close()
 
 	// sending intereseted message after verifying handshake
+	err = c.SendUnchokeMsg()
+	if err != nil {
+		log.Print(err)
+		return
+	}
 	err = c.SendInteresetedMsg()
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	_, err = peerconnect.ReadMsg(c.Conn)
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	// _, err = peerconnect.ReadMsg(c.Conn)
+	// if err != nil {
+	// 	log.Print(err)
+	// 	return
+	// }
 
 	for pdw := range dwQueue {
 		if !c.Bitfield.PieceExist(pdw.index) {
@@ -125,7 +130,7 @@ func downloadPiece(c *peerconnect.PeerConnection, pdw *pieceDw) ([]byte, error) 
 		buffer:     resultBuffer,
 	}
 
-	c.Conn.SetDeadline(time.Now().Add(60 * time.Second))
+	c.Conn.SetDeadline(time.Now().Add(25 * time.Second))
 	defer c.Conn.SetDeadline(time.Time{})
 
 	for progress.downloaded < pdw.length {
@@ -168,7 +173,7 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 	// channel that keeps track of pieces to download
 	dwQueue := make(chan *pieceDw, len(pieceHashes))
 
-	// channel that keeps track of already downloaded pieces and their result
+	// channel that keeps track of downloaded pieces and their result
 	dwResults := make(chan *pieceDwResult)
 
 	// index is the position of the hash in the pieceHash array
@@ -178,7 +183,7 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 	}
 
 	for _, peer := range peerAdd {
-		go HandleConnection(peer, infoHash, peerID, dwQueue, dwResults)
+		go handleConnection(peer, infoHash, peerID, dwQueue, dwResults)
 	}
 
 	resultBuffer := make([]byte, length)

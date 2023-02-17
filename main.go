@@ -32,7 +32,7 @@ func init() {
 func main() {
 	fmt.Println("GoTorrent Client")
 
-	fileReader, err := os.Open("./samples/sample.torrent")
+	fileReader, err := os.Open("./samples/kali.iso.torrent")
 	if err != nil {
 		log.Fatalf("Couldn't open meta-file")
 		return
@@ -52,6 +52,8 @@ func main() {
 		log.Fatalf(err.Error())
 		return
 	}
+
+	fmt.Println(tf.InfoHash)
 
 	//client
 	client := tracker.NewTrackerClient(tf)

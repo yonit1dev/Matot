@@ -20,9 +20,10 @@ type PeerConnection struct {
 }
 
 func performHandshake(conn net.Conn, infohash, peerID [20]byte) error {
-	err := conn.SetDeadline(time.Now().Add(5 * time.Second))
+	err := conn.SetDeadline(time.Now().Add(3 * time.Second))
 	if err != nil {
 		fmt.Print("SetDeadline failed")
+		return nil
 	}
 	defer conn.SetDeadline(time.Time{})
 
@@ -42,14 +43,9 @@ func performHandshake(conn net.Conn, infohash, peerID [20]byte) error {
 		return errors.New("wrong info hash from peer")
 	}
 
-	// else {
-	// 	// fmt.Println("Correct info hash from peer")
-	// }
-
 	return nil
 }
 func NewPeerConnection(peer tracker.Peer, infoHash, peerID [20]byte) (*PeerConnection, error) {
-
 	conn, err := net.Dial("tcp", peer.String())
 	if err != nil {
 		return nil, err
@@ -60,7 +56,7 @@ func NewPeerConnection(peer tracker.Peer, infoHash, peerID [20]byte) (*PeerConne
 	err = performHandshake(conn, infoHash, peerID)
 	if err != nil {
 		log.Printf("handshaking failed with peer: %s", peer.String())
-		// conn.Close()
+		conn.Close()
 		return nil, err
 	}
 

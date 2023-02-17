@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 func (m *Message) BufferMsg() []byte {
@@ -134,39 +135,23 @@ func RecievePieceMsg(reqIndex int, pieceBuf []byte, m *Message) (int, error) {
 }
 
 func RecieveBitfieldMsg(conn net.Conn) (BitFieldType, error) {
-	// conn.SetDeadline(time.Now().Add(10 * time.Second))
-	// defer conn.SetDeadline(time.Time{})
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	defer conn.SetDeadline(time.Time{})
 
-	bitfieldBuffer := make([]byte, 4)
-	_, err := io.ReadFull(conn, bitfieldBuffer)
+	bitfieldMsg, err := ReadMsg(conn)
 	if err != nil {
-		log.Print(err)
+		log.Print(err.Error())
 		return nil, err
 	}
 
-	length := binary.BigEndian.Uint32(bitfieldBuffer)
-
-	buffer := make([]byte, length)
-	_, err = io.ReadFull(conn, buffer)
-	if err != nil {
-		log.Print(err)
-		return nil, err
+	if bitfieldMsg == nil {
+		return nil, errors.New("wrong message - bitfield")
 	}
 
-	// bitfieldMsg, err := ReadMsg(conn)
-	// if err != nil {
-	// 	log.Print(err.Error())
-	// 	return nil, err
-	// }
+	if bitfieldMsg.ID != BitField {
+		log.Print("Wrong message ID for bitfield.")
+		return nil, errors.New("wrong message - bitfield")
+	}
 
-	// if bitfieldMsg == nil {
-	// 	return nil, errors.New("wrong message - bitfield")
-	// }
-
-	// if bitfieldMsg.ID != BitField {
-	// 	log.Print("Wrong message ID for bitfield.")
-	// 	return nil, errors.New("wrong message - bitfield")
-	// }
-
-	return bitfieldBuffer, nil
+	return bitfieldMsg.Payload, nil
 }
