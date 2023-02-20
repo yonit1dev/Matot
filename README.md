@@ -7,6 +7,7 @@ Matot is a minimal BitTorrent client built using Go.
 - Resuming partial downloads.
 
 ### Explanation about the Bittorrent Protocol
+Bittorrent protocol is a peer to peer file sharing protocol.
 
 #### How to use
 - Clone this repository.
