@@ -6,6 +6,8 @@ Matot is a minimal BitTorrent client built using Go.
 - Leeching only.
 - Resuming partial downloads.
 
+### Explanation about the Bittorrent Protocol
+
 #### How to use
 - Clone this repository.
 - Run `go mody tidy` to fetch necessary packages.
