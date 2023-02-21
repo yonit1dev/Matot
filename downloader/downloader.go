@@ -69,58 +69,6 @@ func (progress *workerProg) readMsg() error {
 	return nil
 }
 
-func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan *pieceDw, dwResult chan *pieceDwResult) {
-	c, err := peerconnect.NewPeerConnection(peer, infoHash, peerID)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	// defer c.Conn.Close()
-
-	// sending intereseted message after verifying handshake
-	err = c.SendUnchokeMsg()
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	err = c.SendInteresetedMsg()
-	if err != nil {
-		log.Print(err)
-		return
-	}
-
-	// _, err = peerconnect.ReadMsg(c.Conn)
-	// if err != nil {
-	// 	log.Print(err)
-	// 	return
-	// }
-
-	for pdw := range dwQueue {
-		if !c.Bitfield.PieceExist(pdw.index) {
-			dwQueue <- pdw
-			continue
-		}
-
-		resultBuffer, err := downloadPiece(c, pdw)
-		if err != nil {
-			log.Println("Couldn't download piece. Done!", err)
-			dwQueue <- pdw
-			return
-		}
-
-		err = checkPiece(resultBuffer, pdw.pieceHash)
-		if err != nil {
-			log.Printf("Malformed piece: %d", pdw.index)
-			dwQueue <- pdw
-			continue
-		}
-
-		c.SendHaveMsg(uint32(pdw.index))
-		dwResult <- &pieceDwResult{pdw.index, resultBuffer}
-	}
-}
-
 func downloadPiece(c *peerconnect.PeerConnection, pdw *pieceDw) ([]byte, error) {
 	resultBuffer := make([]byte, pdw.length)
 
@@ -167,6 +115,52 @@ func downloadPiece(c *peerconnect.PeerConnection, pdw *pieceDw) ([]byte, error) 
 	return progress.buffer, nil
 }
 
+func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan *pieceDw, dwResult chan *pieceDwResult) {
+	c, err := peerconnect.NewPeerConnection(peer, infoHash, peerID)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	defer c.Conn.Close()
+
+	// sending unchoke and intereseted message after verifying handshake
+	err = c.SendUnchokeMsg()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	err = c.SendInteresetedMsg()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	for pdw := range dwQueue {
+		if !c.Bitfield.PieceExist(pdw.index) {
+			dwQueue <- pdw
+			continue
+		}
+
+		resultBuffer, err := downloadPiece(c, pdw)
+		if err != nil {
+			log.Println("Couldn't download piece. Done!", err)
+			dwQueue <- pdw
+			return
+		}
+
+		err = checkPiece(resultBuffer, pdw.pieceHash)
+		if err != nil {
+			log.Printf("Malformed piece: %d", pdw.index)
+			dwQueue <- pdw
+			continue
+		}
+
+		c.SendHaveMsg(uint32(pdw.index))
+		dwResult <- &pieceDwResult{pdw.index, resultBuffer}
+	}
+}
+
 func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd []tracker.Peer, infoHash, peerID [20]byte) ([]byte, error) {
 	fmt.Println("Starting torrent download")
 
@@ -182,6 +176,7 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 		dwQueue <- &pieceDw{hash, index, length}
 	}
 
+	// downloading pieces
 	for _, peer := range peerAdd {
 		go handleConnection(peer, infoHash, peerID, dwQueue, dwResults)
 	}
@@ -195,11 +190,11 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 		copy(resultBuffer[begin:end], result.result)
 		downloadedPieces += 1
 
-		completed := float32(downloadedPieces) / float32(len(pieceHashes)) * 100
+		downloaded := float32(downloadedPieces) / float32(len(pieceHashes)) * 100
 
 		numConnPeers := runtime.NumGoroutine() - 1
 
-		fmt.Printf("Progress: (%0.2f%%). Downloading from %d active peers\n", completed, numConnPeers)
+		fmt.Printf("Progress: (%0.2f%%). Downloading from %d active peers\n", downloaded, numConnPeers)
 	}
 	close(dwQueue)
 
