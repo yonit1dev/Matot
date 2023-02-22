@@ -116,7 +116,7 @@ func downloadPiece(c *peerconnect.PeerConnection, pdw *pieceDw) ([]byte, error) 
 	return progress.buffer, nil
 }
 
-func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan *pieceDw, dwResult chan *pieceDwResult) {
+func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan *pieceDw, dwResult chan *pieceDwResult, b peerconnect.BitFieldType) {
 	c, err := peerconnect.NewPeerConnection(peer, infoHash, peerID)
 	if err != nil {
 		log.Print(err)
@@ -138,7 +138,7 @@ func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan
 	}
 
 	for pdw := range dwQueue {
-		if !c.Bitfield.PieceExist(pdw.index) {
+		if !c.Bitfield.PieceExist(pdw.index) && !b.PieceExist(pdw.index) {
 			dwQueue <- pdw
 			continue
 		}
@@ -171,19 +171,38 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 	// channel that keeps track of downloaded pieces and their result
 	dwResults := make(chan *pieceDwResult)
 
+	// local pieces
+	var b peerconnect.BitFieldType
+	// downloaded pieces
+	downloadedPieces := 0
+
 	// index is the position of the hash in the pieceHash array
 	for index, hash := range pieceHashes {
 		length := calcPieceSize(int(length), pieceLength, index)
-		dwQueue <- &pieceDw{hash, index, length}
+
+		begin, _ := calcPieceBounds(int(length), pieceLength, index)
+
+		piece := make([]byte, length)
+		_, err := f.ReadAt(piece, int64(begin))
+		if err != nil {
+			log.Printf("No local file: %s", err)
+		}
+
+		check := checkPiece(piece, hash)
+		if check == nil {
+			downloadedPieces += 1
+			b.ChangeBit(index)
+		} else {
+			dwQueue <- &pieceDw{hash, index, length}
+		}
 	}
 
 	// downloading pieces
 	for _, peer := range peerAdd {
-		go handleConnection(peer, infoHash, peerID, dwQueue, dwResults)
+		go handleConnection(peer, infoHash, peerID, dwQueue, dwResults, b)
 	}
 
 	resultBuffer := make([]byte, length)
-	downloadedPieces := 0
 
 	for downloadedPieces < len(pieceHashes) {
 		result := <-dwResults

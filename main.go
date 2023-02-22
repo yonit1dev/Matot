@@ -76,17 +76,17 @@ func main() {
 		log.Print(err.Error())
 		return
 	}
-
 	fmt.Println(interval)
 
+	// saved file
 	saved, err := os.Create(tf.Name)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 	defer saved.Close()
-
 	tf.ResumeFile = saved
 
+	// download start
 	results, err := downloader.DownloadT(tf.Pieces, int(tf.PieceLength), tf.Length, peerAdd, tf.InfoHash, torrentConfig.PeerID, tf.ResumeFile)
 	if err != nil {
 		log.Print(err)
