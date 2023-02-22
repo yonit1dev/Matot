@@ -9,7 +9,7 @@ import (
 	"matot/downloader"
 	"matot/seeder"
 	"matot/torrent"
-	"matot/tracker.go"
+	"matot/tracker"
 	"os"
 
 	"github.com/jackpal/bencode-go"

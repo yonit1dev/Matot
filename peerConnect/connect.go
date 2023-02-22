@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"matot/tracker.go"
+	"matot/tracker"
 	"net"
 	"time"
 )
