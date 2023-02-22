@@ -79,7 +79,15 @@ func main() {
 
 	fmt.Println(interval)
 
-	results, err := downloader.DownloadT(tf.Pieces, int(tf.PieceLength), tf.Length, peerAdd, tf.InfoHash, torrentConfig.PeerID)
+	saved, err := os.Create(tf.Name)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	defer saved.Close()
+
+	tf.ResumeFile = saved
+
+	results, err := downloader.DownloadT(tf.Pieces, int(tf.PieceLength), tf.Length, peerAdd, tf.InfoHash, torrentConfig.PeerID, tf.ResumeFile)
 	if err != nil {
 		log.Print(err)
 		return

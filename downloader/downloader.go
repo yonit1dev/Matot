@@ -5,6 +5,7 @@ import (
 	"log"
 	peerconnect "matot/peerConnect"
 	"matot/tracker.go"
+	"os"
 	"runtime"
 	"time"
 )
@@ -161,7 +162,7 @@ func handleConnection(peer tracker.Peer, infoHash, peerID [20]byte, dwQueue chan
 	}
 }
 
-func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd []tracker.Peer, infoHash, peerID [20]byte) ([]byte, error) {
+func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd []tracker.Peer, infoHash, peerID [20]byte, f *os.File) ([]byte, error) {
 	fmt.Println("Starting torrent download")
 
 	// channel that keeps track of pieces to download
@@ -187,6 +188,12 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 	for downloadedPieces < len(pieceHashes) {
 		result := <-dwResults
 		begin, end := calcPieceBounds(int(length), pieceLength, result.index)
+
+		_, err := f.WriteAt(result.result, int64(begin))
+		if err != nil {
+			log.Print("Coudln't save piece locally")
+		}
+
 		copy(resultBuffer[begin:end], result.result)
 		downloadedPieces += 1
 
@@ -196,6 +203,7 @@ func DownloadT(pieceHashes [][20]byte, pieceLength int, length uint64, peerAdd [
 
 		fmt.Printf("Progress: (%0.2f%%). Downloading from %d active peers\n", downloaded, numConnPeers)
 	}
+	log.Print("Download done!")
 	close(dwQueue)
 
 	return resultBuffer, nil
