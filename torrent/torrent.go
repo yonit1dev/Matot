@@ -41,6 +41,7 @@ type TorrentFile struct {
 	Length      uint64
 	Pieces      [][20]byte
 	PieceLength uint64
+	ResumeFile  *os.File
 }
 
 func (metaInfo *MetaInfo) Size() (uint64, error) {

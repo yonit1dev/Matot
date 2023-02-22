@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"matot/config"
 	"matot/downloader"
+	"matot/seeder"
 	"matot/torrent"
 	"matot/tracker.go"
 	"os"
@@ -84,6 +85,9 @@ func main() {
 		return
 	}
 
-	torrent.SaveTorrent("./output", results)
+	torrent.SaveTorrent(tf.Name, results)
+
+	// seeder start
+	seeder.UploadServer(tf, torrentConfig)
 
 }
